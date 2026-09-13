@@ -51,6 +51,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:"Gowun Dodum","I
   .col-result{min-width:0;}
   .col-input .people-wrap{grid-template-columns:1fr;} /* 좌측 입력 칸이 좁아서 본인·배우자 카드는 위아래로 */
   .tab-dots{display:none;} /* PC 화면은 탭 버튼으로 바로 전환하니 스와이프 점 표시가 필요 없어요 */
+  .input-dots{display:none;}
+  .input-nav-btn{display:none;} /* PC는 STEP1·STEP2가 같이 다 보이니 다음 버튼이 필요 없어요 */
 }
 /* ---- 모바일 화면: 글자를 전체적으로 키우고, 결과 탭은 옆으로 넘기는 방식으로 ---- */
 @media (max-width:1079px){
@@ -81,6 +83,18 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:"Gowun Dodum","I
   .tab-dots{display:flex;justify-content:center;align-items:center;gap:.4rem;padding:.7rem 0 .2rem;}
   .tab-dots .dot{width:.5rem;height:.5rem;border-radius:50%;background:var(--line);border:none;padding:0;cursor:pointer;transition:.15s;}
   .tab-dots .dot.active{background:var(--accent);width:1.2rem;border-radius:999px;}
+
+  /* 고객님 정보(STEP1)·보유 연금(STEP2)도 한 화면씩만 보이게, 옆으로 넘겨서 진행 */
+  .input-scroller{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;align-items:flex-start;}
+  .input-scroller::-webkit-scrollbar{display:none;}
+  .input-scroller > section.blk{flex:0 0 100%;width:100%;scroll-snap-align:start;box-sizing:border-box;margin-bottom:0;}
+  .input-dots{display:flex;justify-content:center;align-items:center;gap:.4rem;padding:.6rem 0 .3rem;}
+  .input-dots .dot{width:.5rem;height:.5rem;border-radius:50%;background:var(--line);border:none;padding:0;cursor:pointer;transition:.15s;}
+  .input-dots .dot.active{background:var(--accent);width:1.2rem;border-radius:999px;}
+  .input-nav-btn{display:flex;justify-content:center;align-items:center;width:100%;font-family:inherit;font-size:.95rem;font-weight:600;color:#fff;background:var(--accent);border:none;border-radius:10px;padding:.8rem 1rem;cursor:pointer;margin-top:1.1rem;}
+  .input-nav-row{display:flex;flex-direction:column;gap:.6rem;margin-top:1.1rem;}
+  .input-nav-row .input-nav-btn{margin-top:0;}
+  .input-nav-btn.ghost{background:var(--surface);color:var(--ink-soft);border:1px solid var(--line);}
 }
 .num{font-family:"IBM Plex Sans KR",sans-serif;font-variant-numeric:tabular-nums;}
 
@@ -220,6 +234,7 @@ table.tbl td.num{font-family:"IBM Plex Sans KR",sans-serif;font-variant-numeric:
 <div class="split-grid" id="split-grid">
 <div class="col-input">
 
+<div class="input-scroller" id="inputScroller">
   <!-- ============ 고객 정보 ============ -->
   <section class="blk">
     <span class="kicker">STEP 1</span>
@@ -289,6 +304,7 @@ table.tbl td.num{font-family:"IBM Plex Sans KR",sans-serif;font-variant-numeric:
         </div>
       </div>
     </div>
+    <button type="button" class="input-nav-btn" onclick="showInputStep(1)">다음: 보유 연금 입력하기 →</button>
   </section>
 
   <!-- ============ 연금 포트폴리오 입력 ============ -->
@@ -297,7 +313,16 @@ table.tbl td.num{font-family:"IBM Plex Sans KR",sans-serif;font-variant-numeric:
     <h2>고객님이 갖고 계신 연금<small>지금 갖고 계신 것만 켜서 하나씩 알려주세요. 없는 건 그냥 꺼두시면 돼요.</small></h2>
 
     <div id="portfolio-people"></div>
+    <div class="input-nav-row">
+      <button type="button" class="input-nav-btn ghost" onclick="showInputStep(0)">← 고객님 정보 다시 보기</button>
+      <button type="button" class="input-nav-btn" onclick="scrollToResults()">결과 확인하기 →</button>
+    </div>
   </section>
+</div>
+<div class="input-dots" id="inputDots">
+  <button type="button" class="dot active" data-step="0" onclick="showInputStep(0)" aria-label="고객님 정보"></button>
+  <button type="button" class="dot" data-step="1" onclick="showInputStep(1)" aria-label="보유 연금"></button>
+</div>
 
 </div>
 <div class="col-result">
@@ -695,6 +720,37 @@ function onSpouseToggle(){
   recalc();
 }
 
+/* ===================== STEP1·STEP2 입력 화면 전환 (모바일은 한 화면씩 옆으로 넘기기) ===================== */
+function isMobileInput(){
+  return window.matchMedia('(max-width:1079px)').matches;
+}
+function showInputStep(idx, smooth){
+  if(smooth===undefined) smooth = true;
+  const scroller = $('inputScroller');
+  document.querySelectorAll('#inputDots .dot').forEach((d,i)=>d.classList.toggle('active', i===idx));
+  if(!scroller) return;
+  const target = scroller.querySelectorAll('section.blk')[idx];
+  if(!target) return;
+  if(isMobileInput()) scroller.scrollTo({left: target.offsetLeft - scroller.offsetLeft, behavior: smooth?'smooth':'auto'});
+}
+function scrollToResults(){
+  const nav = document.querySelector('nav.apptabs');
+  if(nav) nav.scrollIntoView({behavior:'smooth', block:'start'});
+}
+let __inputScrollRAF = null;
+function onInputScroll(){
+  if(!isMobileInput()) return;
+  if(__inputScrollRAF) return;
+  __inputScrollRAF = requestAnimationFrame(()=>{
+    __inputScrollRAF = null;
+    if(!isMobileInput()) return;
+    const scroller = $('inputScroller');
+    if(!scroller || scroller.clientWidth===0) return;
+    const idx = Math.round(scroller.scrollLeft / scroller.clientWidth);
+    document.querySelectorAll('#inputDots .dot').forEach((d,i)=>d.classList.toggle('active', i===Math.max(0,Math.min(idx,1))));
+  });
+}
+
 /* ===================== 렌더: 요약 ===================== */
 function renderSummary(results){
   let html = '';
@@ -1059,6 +1115,18 @@ recalc();
     if(isMobileTabs()){
       const activeBtn = document.querySelector('.tab-btn.active');
       if(activeBtn) scrollToTab(activeBtn.dataset.tab, false);
+    }
+  });
+})();
+
+/* ---- 모바일 STEP1·STEP2 스와이프 연결: 위 탭 스와이프와 같은 방식으로 점 표시·화면 크기 변경 대응 ---- */
+(function initSwipeInput(){
+  const scroller = $('inputScroller');
+  if(scroller) scroller.addEventListener('scroll', onInputScroll, {passive:true});
+  window.addEventListener('resize', ()=>{
+    if(isMobileInput()){
+      const activeIdx = [...document.querySelectorAll('#inputDots .dot')].findIndex(d=>d.classList.contains('active'));
+      showInputStep(Math.max(0, activeIdx), false);
     }
   });
 })();
